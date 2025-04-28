@@ -14,6 +14,7 @@ import { otpSendEmail } from '../../utils/eamilNotifiacation';
 import { createToken, verifyToken } from '../../utils/tokenManage';
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
+import Otp from '../otp/otp.model';
 
 export type IFilter = {
   searchTerm?: string;
@@ -27,19 +28,19 @@ export interface OTPVerifyAndCreateUserProps {
 }
 
 const createUserToken = async (payload: TUserCreate) => {
-  const { role, email, fullName, password, asRole } = payload;
+  const { role, email, fullName, password } = payload;
 
   // user role check
-  if (!(role === USER_ROLE.CUSTOMER || role === USER_ROLE.BUSINESS)) {
+  if (!(role === USER_ROLE.USER )) {
     throw new AppError(httpStatus.BAD_REQUEST, 'User data is not valid !!');
   }
 
   // user exist check
-  // const userExist = await userService.getUserByEmail(email);
+  const userExist = await userService.getUserByEmail(email);
 
-  // if (userExist) {
-  //   throw new AppError(httpStatus.BAD_REQUEST, 'User already exist!!');
-  // }
+  if (userExist) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'User already exist!!');
+  }
 
   const { isExist, isExpireOtp } = await otpServices.checkOtpByEmail(email);
   // console.log({ isExist });
@@ -77,7 +78,6 @@ const createUserToken = async (payload: TUserCreate) => {
     fullName,
     password,
     role,
-    asRole,
   };
 
   console.log({ otpBody });
@@ -124,7 +124,7 @@ const otpVerifyAndCreateUser = async ({
     throw new AppError(httpStatus.BAD_REQUEST, 'You are not authorised');
   }
 
-  const { password, email, fullName, role, asRole } = decodeData;
+  const { password, email, fullName, role } = decodeData;
 
   const isOtpMatch = await otpServices.otpMatch(email, otp);
 
@@ -138,7 +138,7 @@ const otpVerifyAndCreateUser = async ({
     });
   });
 
-  if (!(role === USER_ROLE.CUSTOMER || role === USER_ROLE.BUSINESS)) {
+  if (!(role === USER_ROLE.USER )) {
     throw new AppError(httpStatus.BAD_REQUEST, 'User data is not valid !!');
   }
 
@@ -202,7 +202,6 @@ const otpVerifyAndCreateUser = async ({
    email,
    fullName,
    role,
-   asRole,
  };
 
   const user = await User.create(userData);
@@ -232,39 +231,39 @@ const otpVerifyAndCreateUser = async ({
   return user;
 };
 
-const userSwichRoleService = async (id: string) => {
-  const swichUser = await User.findById(id);
-  // console.log('swichUser', swichUser);
+// const userSwichRoleService = async (id: string) => {
+//   const swichUser = await User.findById(id);
+//   // console.log('swichUser', swichUser);
 
-  if (!swichUser) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'User not found');
-  }
-  // console.log('as role', swichUser.asRole)
-   let swichRole;
-  if (swichUser.role == 'business') {
+//   if (!swichUser) {
+//     throw new AppError(httpStatus.BAD_REQUEST, 'User not found');
+//   }
+//   // console.log('as role', swichUser.asRole)
+//    let swichRole;
+//   if (swichUser.role == 'business') {
  
-      swichRole = 'customer';
+//       swichRole = 'customer';
     
-    }else{
+//     }else{
       
 
-      swichRole = 'business';
-    }
+//       swichRole = 'business';
+//     }
 
-    console.log('swichRole', swichRole);
+//     console.log('swichRole', swichRole);
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { role: swichRole },
-      { new: true },
-    );
+//     const user = await User.findByIdAndUpdate(
+//       id,
+//       { role: swichRole },
+//       { new: true },
+//     );
 
-    if (!user) {
-      throw new AppError(httpStatus.BAD_REQUEST, 'User swich failed');
-    }
+//     if (!user) {
+//       throw new AppError(httpStatus.BAD_REQUEST, 'User swich failed');
+//     }
 
-    return user;
-};
+//     return user;
+// };
 
 // const userSwichRoleService = async (id: string) => {
 //   const session = await mongoose.startSession();
@@ -321,7 +320,9 @@ const userSwichRoleService = async (id: string) => {
 // };
 
 const updateUser = async (id: string, payload: Partial<TUser>) => {
+  console.log('payload=', payload);
   const { role, email, ...rest } = payload;
+  console.log('rest', rest);
 
   const user = await User.findByIdAndUpdate(id, rest, { new: true });
 
@@ -336,7 +337,7 @@ const updateUser = async (id: string, payload: Partial<TUser>) => {
 
 const getAllUserQuery = async (query: Record<string, unknown>) => {
   const userQuery = new QueryBuilder(User.find({}), query)
-    .search([''])
+    .search(['email', 'fullName'])
     .filter()
     .sort()
     .paginate()
@@ -348,14 +349,11 @@ const getAllUserQuery = async (query: Record<string, unknown>) => {
 };
 
 const getAllUserCount = async () => {
-  const allCustomerCount = await User.countDocuments({
-    role: USER_ROLE.CUSTOMER,
-  });
+  
   const allBusinessCount = await User.countDocuments({
-    role: USER_ROLE.BUSINESS,
+    role: USER_ROLE.USER,
   });
   const result = {
-    allCustomerCount,
     allBusinessCount,
   };
   return result;
@@ -416,7 +414,7 @@ const getUserById = async (id: string) => {
 };
 
 const getUserByEmail = async (email: string) => {
-  const result = await User.findOne({ email });
+  const result = await User.findOne({ email, isDeleted: false });
 
   return result;
 };
@@ -429,7 +427,7 @@ const deleteMyAccount = async (id: string, payload: DeleteAccountPayload) => {
   }
 
   if (user?.isDeleted) {
-    throw new AppError(httpStatus.FORBIDDEN, 'This user is deleted');
+    throw new AppError(httpStatus.FORBIDDEN, 'This user is already deleted');
   }
 
   if (!(await User.isPasswordMatched(payload.password, user.password))) {
@@ -442,7 +440,17 @@ const deleteMyAccount = async (id: string, payload: DeleteAccountPayload) => {
     { new: true },
   );
 
-  if (!userDeleted) {
+  const otpUpdate = await Otp.deleteOne({ sentTo: user.email });
+
+  // const userDeleted = await User.findByIdAndDelete(id);
+
+  // const otpDelete = await Otp.deleteOne({ sentTo: user.email });
+
+  // if (!otpDelete) {
+  //   throw new AppError(httpStatus.BAD_REQUEST, 'user Otp deleted failed');
+  // }
+
+  if (!userDeleted || !otpUpdate) {
     throw new AppError(httpStatus.BAD_REQUEST, 'user deleting failed');
   }
 
@@ -450,14 +458,23 @@ const deleteMyAccount = async (id: string, payload: DeleteAccountPayload) => {
 };
 
 const blockedUser = async (id: string) => {
+  const existUser: TUser | null = await User.findById(id);
+
+  if (!existUser) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+
+  const blockUnblockSwich = existUser.isActive ? false : true;
+
   const user = await User.findByIdAndUpdate(
     id,
-    { isActive: false },
+    { isActive: blockUnblockSwich },
     { new: true },
   );
 
   if (!user) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'user deleting failed');
+    throw new AppError(httpStatus.BAD_REQUEST, 'user blocking failed');
   }
 
   return user;
@@ -466,7 +483,7 @@ const blockedUser = async (id: string) => {
 export const userService = {
   createUserToken,
   otpVerifyAndCreateUser,
-  userSwichRoleService,
+  // userSwichRoleService,
   getUserById,
   getUserByEmail,
   updateUser,

@@ -28,6 +28,12 @@ howMadeSchema.pre('save', function (next) {
         'Title and Details are required for category "text"!',
       );
     }
+    if (this.firstName || this.secondName || this.image1 || this.image2 || this.video) {
+      throw new AppError(
+        403,
+        'firstName, secondName, image1, image2 are not required for category "text"!',
+      );
+    }
   } else if (this.category === 'image') {
     if (
       !this.title ||
@@ -42,6 +48,14 @@ howMadeSchema.pre('save', function (next) {
         'Title, firstName, secondName, image1, image2 and details are required for category "image"!',
       );
     }
+     if (
+       this.video
+     ) {
+       throw new AppError(
+         403,
+         'firstName, secondName, image1, image2 are not required for category "text"!',
+       );
+     }
   } else if (this.category === 'video') {
     if (!this.title || !this.details || !this.video) {
       throw new AppError(
@@ -49,6 +63,17 @@ howMadeSchema.pre('save', function (next) {
         'Title, details, and video are required for category "video"!',
       );
     }
+     if (
+       this.firstName ||
+       this.secondName ||
+       this.image1 ||
+       this.image2 
+     ) {
+       throw new AppError(
+         403,
+         'firstName, secondName, image1, image2 are not required for category "text"!',
+       );
+     }
   }
   next(); 
 });

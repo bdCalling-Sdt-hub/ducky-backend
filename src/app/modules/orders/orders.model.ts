@@ -24,7 +24,7 @@ const OrderSchema = new Schema<TOrder>(
       enum: [
         'pending',
         'completed',
-        'recived',
+        'received',
         'ongoing',
         'delivery',
         'finished',

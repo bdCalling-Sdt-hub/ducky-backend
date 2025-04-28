@@ -2,12 +2,13 @@ import AppError from '../../error/AppError';
 import httpStatus from 'http-status';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Order } from './orders.model';
+import { notificationService } from '../notification/notification.service';
 
 const getAllOrderQuery = async (query: Record<string, unknown>) => {
   const OrderQuery = new QueryBuilder(
     Order.find({ paymentStatus: 'paid' }).populate(
       'productList.productId',
-    ),
+    ).populate('userId'),
     query,
   )
     .search([])
@@ -43,7 +44,7 @@ const getAllOrderByUserQuery = async (userId:string, query: Record<string, unkno
 };
 
 const getSingleOrderQuery = async (id: string) => {
-  const order: any = await Order.findById(id).populate('productList.productId');
+  const order: any = await Order.findById(id).populate('productList.productId').populate('userId');
   if (!order) {
     throw new AppError(404, 'Order Not Found!!');
   }
@@ -60,10 +61,10 @@ const updateSingleOrderStatusQuery = async (id: string, status: any) => {
 
 
    const statusSequence: Record<string, string[]> = {
-     completed: ['recived', 'cancelled'], 
-     recived: ['ongoing'], 
-     ongoing: ['delivery'], 
-     delivery: ['finished'], 
+     completed: ['received', 'cancelled'],
+     received: ['ongoing'],
+     ongoing: ['delivery'],
+     delivery: ['finished'],
    };
 
    const currentStatus = orderProduct.status;
@@ -92,7 +93,19 @@ if (updateHistory) {
     orderProduct.status = status;
   await orderProduct.save();
 
+  if(orderProduct){
+    const notification = await notificationService.createNotification({
+      userId: orderProduct.userId,
+      message: `Your order with id ${orderProduct.id} is ${orderProduct.status}`,
+      type: 'success',
+    })
+    if(notification){
+      io.emit('notification', notification);
+    }
+  }
+
   return orderProduct;
+
 };
 
 const deletedOrderQuery = async (id: string) => {

@@ -12,6 +12,7 @@ import Product from '../product/product.model';
 import { Order } from '../orders/orders.model';
 import { User } from '../user/user.models';
 import { ShipmentApi, ShipmentRequestApi } from './shipmentApi.model';
+import PickupAddress from '../pickupAddress/pickupAddress.model';
 // import Business from '../business/business.model';
 
 // const apiKey = '7EyVLQIcx2Ul6FISHTba0Mr96geTdP6';
@@ -26,7 +27,12 @@ const createShippingService = async (payload: any) => {
   if (!user) {
     throw new AppError(400, 'User is not found!');
   }
-  const heightAndWidth = await calculateShippingBox(order.productList);
+
+  const pickupAddress = await PickupAddress.findOne({});
+  if (!pickupAddress) {
+    throw new AppError(400, 'Pickup Address is not found!');  
+  }
+  const heightAndWidthAndLength = await calculateShippingBox(order.productList);
 
   const productItems = await Promise.all(
     order.productList.map(async (productItem: any) => {
@@ -54,10 +60,10 @@ const createShippingService = async (payload: any) => {
   //   });
 
   // const url = 'https://api.wearewuunder.com/api/v2/bookings';
-  console.log('heightAndWidth==', heightAndWidth);
+  console.log('heightAndWidth==', heightAndWidthAndLength);
 
   const shippingData = {
-    width: Math.ceil(heightAndWidth.avgWidth), // in centimeters
+    width: Math.ceil(heightAndWidthAndLength.avgWidth), // in centimeters
     // weight: 1000, // in grams
     // webhook_url: 'string',
     // value: 40000, // value in eurocents (e.g., €400.00)
@@ -66,27 +72,27 @@ const createShippingService = async (payload: any) => {
     // picture: 'string',
     pickup_date: '2019-08-24T14:15:22Z', // ISO 8601 format, UTC
     pickup_address: {
-      zip_code: '6003 DD',
-      street_name: 'Marconilaan',
-      state_code: 'FL',
-      phone_number: '+31683243251',
-      locality: 'Weert',
-      house_number: '8',
-      given_name: 'First name',
-      family_name: 'Last name',
-      email_address: 'info@examplebusiness.com',
-      country: 'NL',
-      business: 'Example Business Ltd.',
-      address2: 'Appartment 4D',
+      zip_code: pickupAddress.zip_code,
+      street_name: pickupAddress.street_name,
+      state_code: pickupAddress.state_code,
+      phone_number: pickupAddress.phone_number,
+      locality: pickupAddress.locality,
+      house_number: pickupAddress.house_number,
+      given_name: pickupAddress.given_name,
+      family_name: pickupAddress.family_name,
+      email_address: pickupAddress.email_address,
+      country: pickupAddress.country,
+      business: pickupAddress.business,
+      address2: pickupAddress.address2,
     },
     // personal_message: 'A very personal message',
     // parcelshop_id: 'POST_NL:1234',
     order_lines: productItems,
     meta: {},
-    length: 40, // in centimeters
+    length: Math.ceil(heightAndWidthAndLength.avgLength), // in centimeters
     kind: 'package',
     is_return: false,
-    height: Math.ceil(heightAndWidth.avgHeight), // in centimeters
+    height: Math.ceil(heightAndWidthAndLength.avgHeight), // in centimeters
     drop_off: false,
     description: 'description',
     delivery_address: {
@@ -140,6 +146,10 @@ const createShippingRequestService = async (id: any) => {
   if (!shipingApiExist) {
     throw new AppError(400, 'ShipmentBooking id is not found!');
   }
+  const pickupAddress = await PickupAddress.findOne({});
+  if (!pickupAddress) {
+    throw new AppError(400, 'Pickup Address is not found!');
+  }
 
   const singleBooking = await wearewuunderApiRequest(`bookings/${id}`, 'GET');
 
@@ -170,20 +180,18 @@ const createShippingRequestService = async (id: any) => {
       // pickup_date: '2019-08-24T14:15:22Z', // ISO 8601 format, UTC
       preferred_service_level: 'any:most_efficient',
       pickup_address: {
-        zip_code: '6003 DD',
-        vat: 'NL8559.62.100',
-        street_name: 'Marconilaan',
-        state_code: 'FL',
-        phone_number: '+31683243251',
-        locality: 'Weert',
-        house_number: '8',
-        given_name: 'First name',
-        family_name: 'Last name',
-        eori_number: 'NL8559.62.100',
-        email_address: 'info@examplebusiness.com',
-        country: 'NL',
-        business: 'Example Business Ltd.',
-        address2: 'Appartment 4D',
+        zip_code: pickupAddress.zip_code,
+        street_name: pickupAddress.street_name,
+        state_code: pickupAddress.state_code,
+        phone_number: pickupAddress.phone_number,
+        locality: pickupAddress.locality,
+        house_number: pickupAddress.house_number,
+        given_name: pickupAddress.given_name,
+        family_name: pickupAddress.family_name,
+        email_address: pickupAddress.email_address,
+        country: pickupAddress.country,
+        business: pickupAddress.business,
+        address2: pickupAddress.address2,
       },
       personal_message: 'A very personal message',
       // parcelshop_id: 'POST_NL:1234',
@@ -312,6 +320,7 @@ const getAllBookingShippingRequestQuery = async (data: any) => {
   if (!data.ids || data.ids.length === 0) {
     throw new AppError(403, 'Invalid input parameters: No IDs provided');
   }
+ 
 
   const allIds = await ShipmentRequestApi.find();
   const invalidIds = data.ids.filter(
@@ -364,6 +373,11 @@ const createShippingRatesService = async (payload: any) => {
     }),
   );
 
+  const pickupAddress = await PickupAddress.findOne({});
+  if (!pickupAddress) {
+    throw new AppError(400, 'Pickup Address is not found!');
+  }
+
   const productList = await Promise.all(
     payload.cartIds.map(async (cartId: any) => {
       const cartProduct = await Cart.findById(cartId);
@@ -380,19 +394,20 @@ const createShippingRatesService = async (payload: any) => {
 
       return {
         productId: product._id,
+        quantity: cartProduct.quantity,
         name: product.name,
         height: Number(product.height),
         width: Number(product.width),
+        length: Number(product.length),
       };
     }),
   );
-
-  const heightAndWidth = await calculateShippingBox(productList);
+  const heightAndWidthAndLength = await calculateShippingBox(productList);
 
   // const url = 'https://api.wearewuunder.com/api/v2/bookings/rates';
 
   const shippingData = {
-    width: Math.ceil(heightAndWidth.avgWidth), // in centimeters
+    width: Math.ceil(heightAndWidthAndLength.avgWidth), // in centimeters
     // weight: 1000, // in grams
     // webhook_url: 'string',
     // value: 40000, // value in eurocents (e.g., €400.00)
@@ -401,29 +416,28 @@ const createShippingRatesService = async (payload: any) => {
     // picture: 'string',
     // pickup_date: '2019-08-24T14:15:22Z', // ISO 8601 format, UTC
     pickup_address: {
-      zip_code: '6003 DD',
-      street_name: 'Marconilaan',
-      state_code: 'FL',
-      phone_number: '+31683243251',
-      locality: 'Weert',
-      house_number: '8',
-      given_name: 'First name',
-      family_name: 'Last name',
-      eori_number: 'NL8559.62.100',
-      email_address: 'info@examplebusiness.com',
-      country: 'NL',
-      business: 'Example Business Ltd.',
-      address2: 'Appartment 4D',
+      zip_code: pickupAddress.zip_code,
+      street_name: pickupAddress.street_name,
+      state_code: pickupAddress.state_code,
+      phone_number: pickupAddress.phone_number,
+      locality: pickupAddress.locality,
+      house_number: pickupAddress.house_number,
+      given_name: pickupAddress.given_name,
+      family_name: pickupAddress.family_name,
+      email_address: pickupAddress.email_address,
+      country: pickupAddress.country,
+      business: pickupAddress.business,
+      address2: pickupAddress.address2,
     },
     // personal_message: 'A very personal message',
     // parcelshop_id: 'POST_NL:1234',
     order_lines: productItems,
     meta: {},
-    length: 40, // in centimeters
+    length: Math.ceil(heightAndWidthAndLength.avgLength), // in centimeters
     kind: 'package',
     is_return: false,
     incoterms: 'DDP',
-    height: Math.ceil(heightAndWidth.avgHeight), // in centimeters
+    height: Math.ceil(heightAndWidthAndLength.avgHeight), // in centimeters
     drop_off: false,
     description: 'string',
     delivery_address: {
@@ -443,20 +457,47 @@ const createShippingRatesService = async (payload: any) => {
     customer_reference: 'W202301',
   };
 
-  console.log('shippingData--', shippingData);
+  // console.log('shippingData=======', shippingData);
+let result;
+  
+  try {
 
-  const shipingRates = await wearewuunderApiRequest(
-    'bookings/rates',
-    'POST',
-    shippingData,
-  );
+       result = await axios.post(
+        'https://api.wearewuunder.com/api/v2/bookings/rates',
+        shippingData,
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      // console.log('resulet ======', result);
 
-  // console.log('shipingRates==', shipingRates.rates);
+      console.log('shipingRates==result', result);
+    
+  } catch (error:any) {
+    if(error.response.status === 422){
+      throw new AppError(403, "Your Information is not Valid");
+    }
+    
+  }
+
+  // const shipingRates = await wearewuunderApiRequest(
+  //   'bookings/rates',
+  //   'POST',
+  //   shippingData,
+  // );
+
+  // console.log('shipingRates====', shipingRates);
+
 
   // return shipingRates.rates;
 
-  return shipingRates.data.rates;
+  return result?.data?.rates;
 };
+
+
 
 
 

@@ -337,7 +337,7 @@ const updateUser = async (id: string, payload: Partial<TUser>) => {
 
 const getAllUserQuery = async (query: Record<string, unknown>) => {
   const userQuery = new QueryBuilder(User.find({}), query)
-    .search([''])
+    .search(['email', 'fullName'])
     .filter()
     .sort()
     .paginate()
@@ -414,7 +414,7 @@ const getUserById = async (id: string) => {
 };
 
 const getUserByEmail = async (email: string) => {
-  const result = await User.findOne({ email });
+  const result = await User.findOne({ email, isDeleted: false });
 
   return result;
 };
@@ -427,28 +427,30 @@ const deleteMyAccount = async (id: string, payload: DeleteAccountPayload) => {
   }
 
   if (user?.isDeleted) {
-    throw new AppError(httpStatus.FORBIDDEN, 'This user is deleted');
+    throw new AppError(httpStatus.FORBIDDEN, 'This user is already deleted');
   }
 
   if (!(await User.isPasswordMatched(payload.password, user.password))) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Password does not match');
   }
 
-  // const userDeleted = await User.findByIdAndUpdate(
-  //   id,
-  //   { isDeleted: true },
-  //   { new: true },
-  // );
+  const userDeleted = await User.findByIdAndUpdate(
+    id,
+    { isDeleted: true },
+    { new: true },
+  );
 
-  const userDeleted = await User.findByIdAndDelete(id);
+  const otpUpdate = await Otp.deleteOne({ sentTo: user.email });
 
-  const otpDelete = await Otp.deleteOne({ sentTo: user.email });
+  // const userDeleted = await User.findByIdAndDelete(id);
 
-  if (!otpDelete) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'user Otp deleted failed');
-  }
+  // const otpDelete = await Otp.deleteOne({ sentTo: user.email });
 
-  if (!userDeleted) {
+  // if (!otpDelete) {
+  //   throw new AppError(httpStatus.BAD_REQUEST, 'user Otp deleted failed');
+  // }
+
+  if (!userDeleted || !otpUpdate) {
     throw new AppError(httpStatus.BAD_REQUEST, 'user deleting failed');
   }
 
@@ -456,14 +458,23 @@ const deleteMyAccount = async (id: string, payload: DeleteAccountPayload) => {
 };
 
 const blockedUser = async (id: string) => {
+  const existUser: TUser | null = await User.findById(id);
+
+  if (!existUser) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+
+  const blockUnblockSwich = existUser.isActive ? false : true;
+
   const user = await User.findByIdAndUpdate(
     id,
-    { isActive: false },
+    { isActive: blockUnblockSwich },
     { new: true },
   );
 
   if (!user) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'user deleting failed');
+    throw new AppError(httpStatus.BAD_REQUEST, 'user blocking failed');
   }
 
   return user;

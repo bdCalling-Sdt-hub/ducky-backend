@@ -7,15 +7,11 @@ import { withdrawController } from './withdraw.controller';
 const withdrawRouter = express.Router();
 
 withdrawRouter
-  .post(
-    '/add-payment',
-    auth(USER_ROLE.BUSINESS),
-    withdrawController.addWithdraw,
-  )
+  .post('/add-payment', auth(USER_ROLE.USER), withdrawController.addWithdraw)
   .get('/', auth(USER_ROLE.ADMIN), withdrawController.getAllWithdraw)
   .get(
     '/business',
-    auth(USER_ROLE.BUSINESS),
+    auth(USER_ROLE.USER),
     withdrawController.getAllWithdrawByBusinessMan,
   )
   .get('/:id', withdrawController.getSingleWithdraw)

@@ -54,6 +54,11 @@ userRoutes
     parseData(),
     userController.updateMyProfile,
   )
+  .patch(
+    '/blocked/:id',
+    auth(USER_ROLE.ADMIN, USER_ROLE.SUB_ADMIN, USER_ROLE.SUPER_ADMIN),
+    userController.blockedUser,
+  )
   .delete(
     '/delete-my-account',
     auth(
@@ -64,10 +69,6 @@ userRoutes
     ),
     userController.deleteMyAccount,
   )
-  .delete(
-    '/:id',
-    auth(USER_ROLE.ADMIN, USER_ROLE.SUB_ADMIN, USER_ROLE.SUPER_ADMIN),
-    userController.blockedUser,
-  );
+  
 
 // export default userRoutes;

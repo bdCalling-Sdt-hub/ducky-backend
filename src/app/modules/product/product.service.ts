@@ -6,9 +6,16 @@ import { TProduct } from './product.interface';
 import FavoriteProduct from '../favorite/favorite.model';
 import { access } from 'fs/promises';
 import { unlink } from 'fs/promises';
+import PickupAddress from '../pickupAddress/pickupAddress.model';
 
 
 const createProductService = async (payload: TProduct) => {
+
+  const isPickupAddressExist = await PickupAddress.findOne({});
+
+  if (!isPickupAddressExist) {  
+    throw new AppError(400, 'Pickup Address is not Found!!');
+  }
   
   const result = await Product.create(payload);
 
@@ -125,6 +132,20 @@ const getSingleProductQuery = async (id: string, userId:string) => {
   return updateData;
 };
 
+
+const getAdminSingleProductQuery = async (id: string) => {
+    // console.log('userId=', userId);
+
+  const product: any = await Product.findById(id);
+  if (!product) {
+    throw new AppError(404, 'Product Not Found!!');
+  }
+
+  
+
+  return product;
+};
+
 const updateSingleProductQuery = async (id: string, payload:any) => {
   const product: any = await Product.findById(id);
   if (!product) {
@@ -134,12 +155,18 @@ const updateSingleProductQuery = async (id: string, payload:any) => {
   const { remainingUrl, ...rest } = payload;
   console.log('rest==', rest);
 
-  const differentStock = Math.abs( product.availableStock - rest.availableStock);
-  console.log('differentStock', differentStock);
+  if (product.availableStock && rest.availableStock) {
+    const differentStock = Math.abs(
+      product.availableStock - rest.availableStock,
+    );
+    console.log('differentStock', differentStock);
 
-  if (differentStock !== 0) {
-    rest.stock = product.stock + differentStock;
+    if (differentStock !== 0) {
+      console.log('differentStock==', differentStock);
+      rest.stock = product.stock + differentStock;
+    }
   }
+  
 
  console.log('rest==2', rest);
   // const availableStock = rest.availableStock;
@@ -208,6 +235,7 @@ export const productService = {
   createProductService,
   getAllProductQuery,
   getSingleProductQuery,
+  getAdminSingleProductQuery,
   updateSingleProductQuery,
   deletedProductQuery,
 };

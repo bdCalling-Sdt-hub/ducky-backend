@@ -118,6 +118,7 @@ const addPaymentService = async (payload: any) => {
       payload.shippingCost = Number(payload.shippingCost);
     }
 
+     newPayload.totalAmount = newPayload.totalAmount + payload.shippingCost;
     console.log('newPayload with totalAmount==', newPayload);
 
     const order = await Order.create([newPayload], { session });
@@ -157,8 +158,11 @@ const addPaymentService = async (payload: any) => {
 };
 
 const getAllPaymentService = async (query: Record<string, unknown>) => {
-  const PaymentQuery = new QueryBuilder(Payment.find(), query)
-    .search(['name'])
+  const PaymentQuery = new QueryBuilder(
+    Payment.find({}).populate('userId').populate('orderId'),
+    query,
+  )
+    .search([''])
     .filter()
     .sort()
     .paginate()
@@ -463,7 +467,7 @@ const createCheckout = async (userId: any, payload: any) => {
         product_data: {
           name: 'Amount',
         },
-        unit_amount: payload.amount * 100,
+        unit_amount: Math.round(payload.amount * 100),
       },
       quantity: 1,
     },

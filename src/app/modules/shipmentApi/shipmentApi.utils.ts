@@ -56,20 +56,27 @@ export const wearewuunderApiRequest = async (
 export async function calculateShippingBox(products: any) {
   let totalHeight = 0;
   let totalWidth = 0;
+  let totalLength = 0;
 
   const productPromises = products.map(async (product: any) => {
     const productDetails = await Product.findById(product.productId);
 
     if (productDetails) {
-      totalHeight += Number(productDetails.height);
-      totalWidth += Number(productDetails.width);
+        totalHeight += Number(productDetails.height) * product.quantity;
+        totalWidth += Number(productDetails.width) * product.quantity;
+        totalLength += Number(productDetails.length) * product.quantity;
     }
   });
 
   await Promise.all(productPromises);
 
+  console.log('totalHeight', totalHeight);
+  console.log('totalWidth', totalWidth);
+  console.log('totalLength', totalLength);
+
   const avgHeight = totalHeight / products.length;
   const avgWidth = totalWidth / products.length;
+  const avgLength = totalWidth / products.length;
 
-  return { avgHeight, avgWidth };
+  return { avgHeight, avgWidth, avgLength };
 }

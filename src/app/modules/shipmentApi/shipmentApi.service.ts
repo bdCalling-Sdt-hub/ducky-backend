@@ -132,6 +132,15 @@ const createShippingService = async (payload: any) => {
     if (!shipingApi) {
       throw new AppError(400, 'ShipmentApi creqate failed!');
     }
+
+    const order = await Order.findByIdAndUpdate(
+      payload.orderId,
+      { status: 'received' },
+      { new: true },
+    );
+    if (!order) {
+      throw new AppError(400, 'Order is not found!');
+    }
   }
 
   return shipingBooking;
@@ -316,26 +325,16 @@ const createShippingRequestService = async (id: any) => {
 
 };
 
-const getAllBookingShippingRequestQuery = async (data: any) => {
-  if (!data.ids || data.ids.length === 0) {
-    throw new AppError(403, 'Invalid input parameters: No IDs provided');
-  }
- 
+const getAllBookingShippingRequestQuery = async () => {
 
   const allIds = await ShipmentRequestApi.find();
-  const invalidIds = data.ids.filter(
-    (id: any) =>
-      !allIds.some((shipment) => shipment.shipmentRequestId.toString() === id),
-  );
+  const ids = allIds.map((item) => item.shipmentRequestId);
 
-  if (invalidIds.length > 0) {
-    throw new AppError(
-      403,
-      `Invalid input parameters: The following IDs do not exist: ${invalidIds.join(', ')}`,
-    );
+  if (!ids || ids.length === 0) {
+    throw new AppError(400, 'ShipmentRequestApi not found!');
   }
-
-  const bookingPromises = data.ids.map(async (id: any) => {
+  
+  const bookingPromises = ids.map(async (id: any) => {
     const singleBooking = await wearewuunderApiRequest(
       `shipments/${id}`,
       'GET',
@@ -359,6 +358,7 @@ const createShippingRatesService = async (payload: any) => {
       }
 
       const product = await Product.findById(cartProduct.productId);
+      console.log('product===', product);
 
       if (!product) {
         throw new AppError(400, 'Product not found for this cart item');
@@ -403,6 +403,8 @@ const createShippingRatesService = async (payload: any) => {
     }),
   );
   const heightAndWidthAndLength = await calculateShippingBox(productList);
+
+  console.log('productItems', productItems);
 
   // const url = 'https://api.wearewuunder.com/api/v2/bookings/rates';
 
@@ -457,7 +459,7 @@ const createShippingRatesService = async (payload: any) => {
     customer_reference: 'W202301',
   };
 
-  // console.log('shippingData=======', shippingData);
+  console.log('shippingData=======', shippingData);
 let result;
   
   try {
@@ -501,28 +503,16 @@ let result;
 
 
 
-const getAllBookingShippingQuery = async (data:any) => {
+const getAllBookingShippingQuery = async () => {
 
-  if(!data.ids || data.ids.length === 0){
+  const newData = await ShipmentApi.find();
+  const ids = newData.map((item: any) => item.shippingbookingId);
+
+  if (!ids || ids.length === 0) {
     throw new AppError(403, 'Invalid input parameters: No IDs provided');
-
   }
 
-  const allIds = await ShipmentApi.find();
-   const invalidIds = data.ids.filter(
-     (id:any) =>
-       !allIds.some((shipment) => shipment.shippingbookingId.toString() === id),
-   );
-
-   if (invalidIds.length > 0) {
-     throw new AppError(
-       403,
-       `Invalid input parameters: The following IDs do not exist: ${invalidIds.join(', ')}`,
-     );
-   }
-
-
-  const bookingPromises = data.ids.map(async (id:any) => {
+  const bookingPromises = ids.map(async (id:any) => {
     const singleBooking = await wearewuunderApiRequest(`bookings/${id}`, 'GET');
     return singleBooking.data;
   });

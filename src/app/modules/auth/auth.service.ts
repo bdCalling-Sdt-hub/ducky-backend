@@ -23,14 +23,11 @@ import { OTPVerifyAndCreateUserProps, userService } from '../user/user.service';
 
 // Login
 const login = async (payload: TLogin) => {
-  // console.log("payload", payload)
   const user = await User.isUserActive(payload?.email);
-  // console.log('user', user);
   if (!user) {
     throw new AppError(httpStatus.BAD_REQUEST, 'User not found');
   }
   
-
   if (!(await User.isPasswordMatched(payload.password, user.password))) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Password does not match');
   }
@@ -47,7 +44,6 @@ const login = async (payload: TLogin) => {
     role: user?.role,
   };
 
-  // console.log({ jwtPayload });
 
   const accessToken = createToken({
     payload: jwtPayload,
@@ -55,7 +51,6 @@ const login = async (payload: TLogin) => {
     expity_time: config.jwt_access_expires_in as string,
   });
 
-  // console.log({ accessToken });
 
   const refreshToken = createToken({
     payload: jwtPayload,
@@ -123,6 +118,8 @@ const forgotPassword = async (email: string) => {
       expiredAt: expiredAt,
     });
   });
+
+  
 
   return { forgetToken };
 };

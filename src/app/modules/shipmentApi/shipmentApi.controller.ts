@@ -45,8 +45,7 @@ const createShippingRates = catchAsync(async (req, res) => {
 });
 
 const getAllShipping = catchAsync(async (req, res) => {
-  const data = req.body;
-  const result = await shippingService.getAllBookingShippingQuery(data);
+  const result = await shippingService.getAllBookingShippingQuery();
 
   sendResponse(res, {
     success: true,
@@ -59,8 +58,7 @@ const getAllShipping = catchAsync(async (req, res) => {
 
 
 const getAllShippingRequest = catchAsync(async (req, res) => {
-  const data = req.body;
-  const result = await shippingService.getAllBookingShippingRequestQuery(data);
+  const result = await shippingService.getAllBookingShippingRequestQuery();
 
   sendResponse(res, {
     success: true,

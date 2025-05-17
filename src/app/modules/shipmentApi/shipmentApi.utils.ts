@@ -36,7 +36,10 @@ export const wearewuunderApiRequest = async (
         headers: error.response.headers,
         url: url,
         method: method,
-        errors: error.response.data.errors,
+        errors: error.response.data.errors.map(
+          (errorItem:any) => errorItem.messages,
+        ),
+        message: error.response.data[0]?.message,
       });
 
 
@@ -45,6 +48,15 @@ export const wearewuunderApiRequest = async (
       }
       if (error.response.status === 404) {
         throw new AppError(404, 'Not found');
+      }
+
+      if(error.response.status === 422) {
+        console.log('error.response.data', error.response.data);
+        console.log(
+          'error.response.data.error_details',
+          error.response.data.error_details,
+        );
+        console.log('error.response.data.errors', error.response.data.errors);
       }
     } else {
       console.error('Error:', error.message);

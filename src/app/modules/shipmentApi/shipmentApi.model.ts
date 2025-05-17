@@ -12,8 +12,8 @@ const ShipmentApi = model<TShipmentApi>('ShipmentApi', shipmentApiSchema);
 
 
 const shipmentRequestSchema = new Schema<TShipmentRequestApi>({
-  shipmentRequestId: { type: String, required: true },
-});
+  shipmentRequestId: { type: String, required: true , unique: true },
+},{timestamps: true});
 
 
 

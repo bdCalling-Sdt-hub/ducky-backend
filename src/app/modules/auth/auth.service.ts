@@ -25,7 +25,7 @@ import { OTPVerifyAndCreateUserProps, userService } from '../user/user.service';
 const login = async (payload: TLogin) => {
   const user = await User.isUserActive(payload?.email);
   if (!user) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'User not found');
+    throw new AppError(httpStatus.BAD_REQUEST, 'User not found!!');
   }
   
   if (!(await User.isPasswordMatched(payload.password, user.password))) {

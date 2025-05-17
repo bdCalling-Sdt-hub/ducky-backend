@@ -17,6 +17,9 @@ import { Order } from '../orders/orders.model';
 import { TProduct } from '../product/product.interface';
 import { notificationService } from '../notification/notification.service';
 import Cart from '../cart/cart.model';
+import PickupAddress from '../pickupAddress/pickupAddress.model';
+import { calculateShippingBox, wearewuunderApiRequest } from '../shipmentApi/shipmentApi.utils';
+import { ShipmentRequestApi } from '../shipmentApi/shipmentApi.model';
 
 type SessionData = Stripe.Checkout.Session;
 
@@ -131,7 +134,7 @@ const addPaymentService = async (payload: any) => {
 
     const paymentInfo = {
       orderId: order[0]._id,
-      amount: order[0].totalAmount + payload.shippingCost,
+      amount: order[0].totalAmount,
       cartIds: payload.cartIds,
     };
 
@@ -448,17 +451,7 @@ const createCheckout = async (userId: any, payload: any) => {
   console.log('stripe payment', payload);
   let session = {} as { id: string };
 
-  // const lineItems = products.map((product) => ({
-  //   price_data: {
-  //     currency: 'usd',
-  //     product_data: {
-  //       name: 'Order Payment',
-  //       description: 'Payment for user order',
-  //     },
-  //     unit_amount: Math.round(product.price * 100),
-  //   },
-  //   quantity: product.quantity,
-  // }));
+
 
   const lineItems = [
     {
@@ -640,6 +633,114 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
             'Payment record creation failed',
           );
         }
+        const user = await User.findById(userId);
+        if (!user) {
+          throw new AppError(httpStatus.BAD_REQUEST, 'User not found');
+        }
+
+         const pickupAddress = await PickupAddress.findOne({});
+          if (!pickupAddress) {
+            throw new AppError(400, 'Pickup Address is not found!');  
+          }
+          const heightAndWidthAndLength = await calculateShippingBox(order.productList);
+        
+          const productItems = await Promise.all(
+            order.productList.map(async (productItem: any) => {
+              const product = await Product.findById(productItem.productId);
+        
+              if (!product) {
+                throw new AppError(400, 'Product not found for this cart item');
+              }
+        
+              return {
+                weight: Number(product.weight),
+                value: productItem.price,
+                quantity: productItem.quantity,
+                description: 'string',
+              };
+            }),
+          );
+
+        
+            const shipmentRequestData = {
+              width: 80 < Math.ceil(heightAndWidthAndLength.avgWidth) ? 80 : Math.ceil(heightAndWidthAndLength.avgWidth), // in centimeters
+                  // in centimeters
+              // pickup_date: '2019-08-24T14:15:22Z', // ISO 8601 format, UTC
+              preferred_service_level: 'any:most_efficient',
+              // preferred_service_level: 'post_nl:cheapest',
+              pickup_address: {
+                zip_code: pickupAddress.zip_code,
+                street_name: pickupAddress.street_name,
+                state_code: pickupAddress.state_code,
+                phone_number: pickupAddress.phone_number,
+                locality: pickupAddress.locality,
+                house_number: pickupAddress.house_number,
+                given_name: pickupAddress.given_name,
+                family_name: pickupAddress.family_name,
+                email_address: pickupAddress.email_address,
+                country: pickupAddress.country,
+                business: pickupAddress.business,
+                address2: pickupAddress.address2,
+              },
+              personal_message: 'A very personal message',
+              // parcelshop_id: 'POST_NL:1234',
+              order_lines: productItems,
+              meta: {},
+              length: 120 < Math.ceil(heightAndWidthAndLength.avgLength) ? 120 : Math.ceil(heightAndWidthAndLength.avgLength), // in centimeters
+              kind: 'package',
+              is_return: false,
+              height: 80 < Math.ceil(heightAndWidthAndLength.avgHeight) ? 80 : Math.ceil(heightAndWidthAndLength.avgHeight), // in centimeters
+              drop_off: false,
+              description: 'description',
+              delivery_address: {
+                zip_code: order.zip_code,
+                street_name: order.street_name,
+                state_code: order.state_code,
+                phone_number: order.phone_number,
+                locality: order.locality,
+                house_number: order.house_number,
+                given_name: order.given_name,
+                family_name: order.family_name,
+                email_address: user.email,
+                country: order.country,
+                business: order.business,
+                address2: order.address2,
+              },
+              delivery_instructions: 'delivery instructions',
+              customer_reference: 'W202301',
+            };
+        
+            console.log('shipmentRequestData===========', shipmentRequestData);
+        
+           
+        
+            const shipmentRequestBooking = await wearewuunderApiRequest(
+              'shipments',
+              'POST',
+              shipmentRequestData,
+            );
+        
+            console.log('shipmentRequestBooking==*****', shipmentRequestBooking);
+        
+            if (shipmentRequestBooking.status === 201) {
+              const data = {
+                shipmentRequestId: shipmentRequestBooking.data.id,
+              };
+
+              // const shipingApiExist = await ShipmentRequestApi.findOne({shipmentRequestId:shipmentRequestBooking.data.id}); 
+              // if (!shipingApiExist) {
+              //   throw new AppError(400, 'ShipmentRequestApi id is not found!');
+              // }
+        
+              const shipingApi = await ShipmentRequestApi.create(data);
+              console.log('shipingApi', shipingApi);
+        
+              if (!shipingApi) {
+                throw new AppError(400, 'ShipmentRequestApi creqate failed!');
+              }
+            }
+
+
 
         const deletedCartProducts = await Promise.all(
           cartIds.map(async (cartProductId: any) => {

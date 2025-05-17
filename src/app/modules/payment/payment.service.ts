@@ -475,11 +475,9 @@ const createCheckout = async (userId: any, payload: any) => {
     cancel_url: `http://10.0.70.35:8078/api/v1/payment/cancel`,
     line_items: lineItems,
     metadata: {
-      userId: String(userId), // Convert userId to string
+      userId: String(userId), 
       orderId: String(payload.orderId),
-      // cartIds: payload.cartIds,
       cartIds: JSON.stringify(payload.cartIds),
-      // products: payload,
     },
   };
 
@@ -490,17 +488,14 @@ const createCheckout = async (userId: any, payload: any) => {
     session = await stripe.checkout.sessions.create(sessionData);
     console.log('session==', session);
 
-    // console.log('session', session.id);
   } catch (error) {
     console.log('Error', error);
   }
 
   console.log('try session 22');
-  // // console.log({ session });
   const { id: session_id, url }: any = session || {};
 
   console.log({ url });
-  // console.log({ url });
 
   return { url };
 };
@@ -528,7 +523,6 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
         const cartIds = JSON.parse(metadata?.cartIds as any);
         console.log('cartIds==', cartIds);
 
-        // session.metadata && (session.metadata.serviceBookingId as string);
         if (!paymentIntentId) {
           throw new AppError(
             httpStatus.BAD_REQUEST,
@@ -604,9 +598,6 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
               throw new AppError(403, 'Insufficient stock after retry');
             }
 
-            // singleProduct.availableStock -= product.quantity;
-            // await singleProduct.save({ session });
-
             return updatedProduct;
           }),
         );
@@ -663,9 +654,7 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
 
         
             const shipmentRequestData = {
-              width: 80 < Math.ceil(heightAndWidthAndLength.avgWidth) ? 80 : Math.ceil(heightAndWidthAndLength.avgWidth), // in centimeters
-                  // in centimeters
-              // pickup_date: '2019-08-24T14:15:22Z', // ISO 8601 format, UTC
+              width: 80 < Math.ceil(heightAndWidthAndLength.avgWidth) ? 80 : Math.ceil(heightAndWidthAndLength.avgWidth), 
               preferred_service_level: 'any:most_efficient',
               // preferred_service_level: 'post_nl:cheapest',
               pickup_address: {
@@ -727,10 +716,7 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
                 shipmentRequestId: shipmentRequestBooking.data.id,
               };
 
-              // const shipingApiExist = await ShipmentRequestApi.findOne({shipmentRequestId:shipmentRequestBooking.data.id}); 
-              // if (!shipingApiExist) {
-              //   throw new AppError(400, 'ShipmentRequestApi id is not found!');
-              // }
+          
         
               const shipingApi = await ShipmentRequestApi.create(data);
               console.log('shipingApi', shipingApi);

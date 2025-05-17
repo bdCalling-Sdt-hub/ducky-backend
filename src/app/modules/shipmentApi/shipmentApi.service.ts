@@ -185,7 +185,7 @@ const createShippingRequestService = async (id: any) => {
     // console.log('orderItems====', orderItems);
 
     const shipmentRequestData = {
-      width: data.width, // in centimeters
+      width: 80 < data.width ? 80 : data.width , // in centimeters
       // pickup_date: '2019-08-24T14:15:22Z', // ISO 8601 format, UTC
       preferred_service_level: 'any:most_efficient',
       pickup_address: {
@@ -206,10 +206,10 @@ const createShippingRequestService = async (id: any) => {
       // parcelshop_id: 'POST_NL:1234',
       order_lines: orderItems,
       meta: {},
-      length: 40, // in centimeters
+      length: 120 < data.length ? 120 : data.length, // in centimeters
       kind: 'package',
       is_return: false,
-      height: data.height, // in centimeters
+      height: 80 < data.height ? 80 : data.height, // in centimeters
       drop_off: false,
       description: 'description',
       delivery_address: {
@@ -409,7 +409,7 @@ const createShippingRatesService = async (payload: any) => {
   // const url = 'https://api.wearewuunder.com/api/v2/bookings/rates';
 
   const shippingData = {
-    width: Math.ceil(heightAndWidthAndLength.avgWidth), // in centimeters
+    width: 80 < Math.ceil(heightAndWidthAndLength.avgWidth) ? 80 : Math.ceil(heightAndWidthAndLength.avgWidth), // in centimeters
     // weight: 1000, // in grams
     // webhook_url: 'string',
     // value: 40000, // value in eurocents (e.g., €400.00)
@@ -435,11 +435,11 @@ const createShippingRatesService = async (payload: any) => {
     // parcelshop_id: 'POST_NL:1234',
     order_lines: productItems,
     meta: {},
-    length: Math.ceil(heightAndWidthAndLength.avgLength), // in centimeters
+    length: 120 < Math.ceil(heightAndWidthAndLength.avgLength) ? 120 : Math.ceil(heightAndWidthAndLength.avgLength) , // in centimeters
     kind: 'package',
     is_return: false,
     incoterms: 'DDP',
-    height: Math.ceil(heightAndWidthAndLength.avgHeight), // in centimeters
+    height: 80 < Math.ceil(heightAndWidthAndLength.avgHeight) ? 80 : Math.ceil(heightAndWidthAndLength.avgHeight), // in centimeters
     drop_off: false,
     description: 'string',
     delivery_address: {

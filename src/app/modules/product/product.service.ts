@@ -92,7 +92,10 @@ const getAllProductQuery = async (query: Record<string, unknown>) => {
    console.log('query filter', query);
 
 
-  const productQuery = new QueryBuilder(Product.find({ isDeleted:false }), newQuery)
+  const productQuery = new QueryBuilder(
+    Product.find({ isDeleted: false, availableStock: { $gt: 0 } }),
+    newQuery,
+  )
     .search(['name', 'details'])
     .filter()
     .sort()
@@ -239,3 +242,6 @@ export const productService = {
   updateSingleProductQuery,
   deletedProductQuery,
 };
+
+
+

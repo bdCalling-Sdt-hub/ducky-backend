@@ -14,6 +14,11 @@ import { User } from '../user/user.models';
 import { ShipmentApi, ShipmentRequestApi } from './shipmentApi.model';
 import PickupAddress from '../pickupAddress/pickupAddress.model';
 // import Business from '../business/business.model';
+import {
+  postcodeValidator,
+  postcodeValidatorExistsForCountry,
+} from 'postcode-validator';
+
 
 // const apiKey = '7EyVLQIcx2Ul6FISHTba0Mr96geTdP6';
 const apiKey = '7EyVLQIcx2Ul6PISQaTba0Mr96geTdP6';
@@ -349,6 +354,18 @@ const getAllBookingShippingRequestQuery = async () => {
 
 
 const createShippingRatesService = async (payload: any) => {
+
+  const isValid = postcodeValidator(payload.zip_code, payload.country);
+  console.log('isValid================', isValid);
+
+  if (!isValid) {
+    throw new AppError(400, 'Zip code is not valid!');
+  }
+
+
+
+
+
   const productItems = await Promise.all(
     payload.cartIds.map(async (cartId: any) => {
       const cartProduct = await Cart.findById(cartId);

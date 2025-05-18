@@ -471,11 +471,11 @@ const createCheckout = async (userId: any, payload: any) => {
   const sessionData: any = {
     payment_method_types: ['card'],
     mode: 'payment',
-    success_url: `http://10.0.70.35:8078/api/v1/payment/success`,
-    cancel_url: `http://10.0.70.35:8078/api/v1/payment/cancel`,
+    success_url: `http://3.114.93.108:8078/api/v1/payment/success`,
+    cancel_url: `http://3.114.93.108:8078/api/v1/payment/cancel`,
     line_items: lineItems,
     metadata: {
-      userId: String(userId), 
+      userId: String(userId),
       orderId: String(payload.orderId),
       cartIds: JSON.stringify(payload.cartIds),
     },

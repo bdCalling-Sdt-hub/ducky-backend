@@ -13,12 +13,12 @@ export type TOrder = {
   orderDate: Date;
   status: string;
   paymentStatus: string;
-  history: [
-    {
-      status: string;
-      date: Date;
-    },
-  ];
+  // history: [
+  //   {
+  //     status: string;
+  //     date: Date;
+  //   },
+  // ];
 
   phone_number: string;
   zip_code: string;
@@ -31,4 +31,7 @@ export type TOrder = {
   country: string;
   business: string;
   address2: string;
+  error?: string;
+  trackUrl?: string;
+
 };

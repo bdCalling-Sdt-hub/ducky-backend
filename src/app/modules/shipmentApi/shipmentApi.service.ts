@@ -68,13 +68,7 @@ const createShippingService = async (payload: any) => {
   console.log('heightAndWidth==', heightAndWidthAndLength);
 
   const shippingData = {
-    width: Math.ceil(heightAndWidthAndLength.avgWidth), // in centimeters
-    // weight: 1000, // in grams
-    // webhook_url: 'string',
-    // value: 40000, // value in eurocents (e.g., €400.00)
-    // redirect_url: 'string',
-    // preferred_service_level: 'post_nl:cheapest',
-    // picture: 'string',
+    width: Math.ceil(heightAndWidthAndLength.avgWidth), 
     pickup_date: '2019-08-24T14:15:22Z', // ISO 8601 format, UTC
     pickup_address: {
       zip_code: pickupAddress.zip_code,
@@ -90,8 +84,6 @@ const createShippingService = async (payload: any) => {
       business: pickupAddress.business,
       address2: pickupAddress.address2,
     },
-    // personal_message: 'A very personal message',
-    // parcelshop_id: 'POST_NL:1234',
     order_lines: productItems,
     meta: {},
     length: Math.ceil(heightAndWidthAndLength.avgLength), // in centimeters
@@ -154,43 +146,58 @@ const createShippingService = async (payload: any) => {
 
 
 const createShippingRequestService = async (id: any) => {
-  console.log("id===",id);
 
-  const shipingApiExist = await ShipmentApi.findOne({shippingbookingId:id}); 
-  if (!shipingApiExist) {
-    throw new AppError(400, 'ShipmentBooking id is not found!');
+  const completeOrder = await Order.findById(id);
+  if (!completeOrder) {
+    throw new AppError(400, 'Order is not found!');
   }
+  if (completeOrder.paymentStatus !== 'paid') {
+    throw new AppError(400, 'Order is not paid!');
+  }
+
+  const user = await User.findById(completeOrder.userId);
+  if (!user) {
+    throw new AppError(400, 'User is not found!');
+  }
+
   const pickupAddress = await PickupAddress.findOne({});
   if (!pickupAddress) {
     throw new AppError(400, 'Pickup Address is not found!');
   }
 
-  const singleBooking = await wearewuunderApiRequest(`bookings/${id}`, 'GET');
+  // const singleBooking = await wearewuunderApiRequest(`bookings/${id}`, 'GET');
 
-  if (singleBooking.status === 200) {
-    const data = singleBooking.data;
 
-    if (!data.width || data.width <= 0) {
-      throw new AppError(400, 'Width must be greater than 0');
-    }
+   
+   
+    const orderItems = await Promise.all(
+      completeOrder.productList.map(async (productItem: any) => {
+        const product = await Product.findById(productItem.productId);
 
-    if (!data.customer_reference) {
-      throw new AppError(400, "Customer reference can't be blank");
-    }
-    // console.log('data===', data);
-    const orderItems = data.order_lines.map((item: any) => {
-      return {
-        weight: item.weight,
-        value: item.value,
-        quantity: item.quantity,
-        description: item.description,
-      };
-    });
+        if (!product) {
+          throw new AppError(400, 'Product not found for this cart item');
+        }
+
+        return {
+          weight: Number(product.weight),
+          value: productItem.price,
+          quantity: productItem.quantity,
+          description: 'string',
+        };
+      }),
+    );
 
     // console.log('orderItems====', orderItems);
 
+     const heightAndWidthAndLength = await calculateShippingBox(
+       completeOrder.productList,
+     );
+
     const shipmentRequestData = {
-      width: 80 < data.width ? 80 : data.width , // in centimeters
+      width:
+        80 < Math.ceil(heightAndWidthAndLength.avgWidth)
+          ? 80
+          : Math.ceil(heightAndWidthAndLength.avgWidth), // in centimeters
       // pickup_date: '2019-08-24T14:15:22Z', // ISO 8601 format, UTC
       preferred_service_level: 'any:most_efficient',
       pickup_address: {
@@ -211,28 +218,34 @@ const createShippingRequestService = async (id: any) => {
       // parcelshop_id: 'POST_NL:1234',
       order_lines: orderItems,
       meta: {},
-      length: 120 < data.length ? 120 : data.length, // in centimeters
+      length:
+        120 < Math.ceil(heightAndWidthAndLength.avgLength)
+          ? 120
+          : Math.ceil(heightAndWidthAndLength.avgLength), // in centimeters
       kind: 'package',
       is_return: false,
-      height: 80 < data.height ? 80 : data.height, // in centimeters
+      height:
+        80 < Math.ceil(heightAndWidthAndLength.avgHeight)
+          ? 80
+          : Math.ceil(heightAndWidthAndLength.avgHeight), // in centimeters
       drop_off: false,
       description: 'description',
       delivery_address: {
-        zip_code: data.delivery_address.zip_code,
-        street_name: data.delivery_address.street_name,
-        state_code: data.delivery_address.state_code,
-        phone_number: data.delivery_address.phone_number,
-        locality: data.delivery_address.locality,
-        house_number: data.delivery_address.house_number,
-        given_name: data.delivery_address.given_name,
-        family_name: data.delivery_address.family_name,
-        email_address: data.delivery_address.email_address,
-        country: data.delivery_address.country,
-        business: data.delivery_address.business,
-        address2: data.delivery_address.address2,
+        zip_code: completeOrder.zip_code,
+        street_name: completeOrder.street_name,
+        state_code: completeOrder.state_code,
+        phone_number: completeOrder.phone_number,
+        locality: completeOrder.locality,
+        house_number: completeOrder.house_number,
+        given_name: completeOrder.given_name,
+        family_name: completeOrder.family_name,
+        email_address: user.email,
+        country: completeOrder.country,
+        business: completeOrder.business,
+        address2: completeOrder.address2,
       },
       delivery_instructions: 'delivery instructions',
-      customer_reference: data.customer_reference,
+      customer_reference: 'W202301',
     };
 
     console.log('shipmentRequestData===========', shipmentRequestData);
@@ -305,29 +318,82 @@ const createShippingRequestService = async (id: any) => {
     //   customer_reference: 'W202301',
     // };
 
-    const shipmentRequestBooking = await wearewuunderApiRequest(
-      'shipments',
-      'POST',
-      shipmentRequestData,
-    );
+    // const shipmentRequestBooking = await wearewuunderApiRequest(
+    //   'shipments',
+    //   'POST',
+    //   shipmentRequestData,
+    // );
 
-    console.log('shipmentRequestBooking==*****', shipmentRequestBooking);
+     try {
+                 const  shipmentRequestBooking = await axios.post(
+                    'https://api.wearewuunder.com/api/v2/shipments',
+                    shipmentRequestData,
+                    {
+                      headers: {
+                        // Authorization: `Bearer ${config.shipment_key}`,
+                        Authorization: `Bearer 7EyVLQIcx2Ul6PISQaTba0Mr96geTdP6`,
+                        'Content-Type': 'application/json',
+                      },
+                    },
+                  );
+    
+                  console.log('shipmentRequestBooking', shipmentRequestBooking);
+    
+                  if (shipmentRequestBooking.status === 201) {
+                    const data = {
+                      shipmentRequestId: shipmentRequestBooking.data.id,
+                    };
+    
+                    const shipingApi = await ShipmentRequestApi.create(data);
+                    console.log('shipingApi', shipingApi);
+                    const order = await Order.findByIdAndUpdate(
+                      id,
+                      {
+                        trackUrl:
+                          shipmentRequestBooking.data.track_and_trace_url,
+                          error:null
+                      },
+                      { new: true },
+                    );
+    
+                    if (!order) {
+                      throw new AppError(httpStatus.BAD_REQUEST, 'Order not found');
+                    }
+    
+                    if (!shipingApi) {
+                      throw new AppError(400, 'ShipmentRequestApi creqate failed!');
+                    }
+                  }
+    
+                  return shipmentRequestBooking?.data;
+                } catch (error:any) {
+                  console.log('error==', error);
+    
+                  console.error('Error Response:', {
+                    status: error.response.status,
+                    data: error.response.data,
+                    headers: error.response.headers,
+                    // url: url,
+                    // method: method,
+                    // errors: error.response.data.errors.map(
+                    //   (errorItem: any) => errorItem.messages,
+                    // ),
+                    message: error.response.data[0]?.message,
+                  });
+    
+    
+                  if(error){
+                    const order = await Order.findByIdAndUpdate(
+                      id,
+                      { error: error.response.data[0]?.message },
+                      { new: true },
+                    );
+                  }
+                  return error.response;
+                  
+                }
 
-    if (shipmentRequestBooking.status === 201) {
-      const data = {
-        shipmentRequestId: shipmentRequestBooking.data.id,
-      };
-
-      const shipingApi = await ShipmentRequestApi.create(data);
-
-      if (!shipingApi) {
-        throw new AppError(400, 'ShipmentRequestApi creqate failed!');
-      }
-    }
-
-      return shipmentRequestBooking.data;
-  }
-
+  
 };
 
 const getAllBookingShippingRequestQuery = async () => {
@@ -354,17 +420,29 @@ const getAllBookingShippingRequestQuery = async () => {
 
 
 const createShippingRatesService = async (payload: any) => {
-
   const isValid = postcodeValidator(payload.zip_code, payload.country);
-  console.log('isValid================', isValid);
+  // console.log('isValid================', isValid);
+  // console.log('dsfaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-1');
 
   if (!isValid) {
     throw new AppError(400, 'Zip code is not valid!');
   }
+  // console.log('dsfaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-2');
+  const isValidCountry = postcodeValidatorExistsForCountry(payload.country);
 
+  if (!isValidCountry) {
+    throw new AppError(400, 'Country is not valid!');
+  }
 
+  function validateDutchPostalCode(postalCode: string) {
+  const regex = /^[1-9]\d{3}\s?(?:[A-PR-TV-Z][A-Z]|S[BCE-RT-Z])$/i;
+    return regex.test(postalCode);
+  };
 
-
+  if (!validateDutchPostalCode(payload.zip_code)) {
+    throw new AppError(404, 'Zip code is not valid for this country!');
+  }
+ 
 
   const productItems = await Promise.all(
     payload.cartIds.map(async (cartId: any) => {
@@ -426,7 +504,10 @@ const createShippingRatesService = async (payload: any) => {
   // const url = 'https://api.wearewuunder.com/api/v2/bookings/rates';
 
   const shippingData = {
-    width: 80 < Math.ceil(heightAndWidthAndLength.avgWidth) ? 80 : Math.ceil(heightAndWidthAndLength.avgWidth), // in centimeters
+    width:
+      80 < Math.ceil(heightAndWidthAndLength.avgWidth)
+        ? 80
+        : Math.ceil(heightAndWidthAndLength.avgWidth), // in centimeters
     // weight: 1000, // in grams
     // webhook_url: 'string',
     // value: 40000, // value in eurocents (e.g., €400.00)
@@ -452,11 +533,17 @@ const createShippingRatesService = async (payload: any) => {
     // parcelshop_id: 'POST_NL:1234',
     order_lines: productItems,
     meta: {},
-    length: 120 < Math.ceil(heightAndWidthAndLength.avgLength) ? 120 : Math.ceil(heightAndWidthAndLength.avgLength) , // in centimeters
+    length:
+      120 < Math.ceil(heightAndWidthAndLength.avgLength)
+        ? 120
+        : Math.ceil(heightAndWidthAndLength.avgLength), // in centimeters
     kind: 'package',
     is_return: false,
     incoterms: 'DDP',
-    height: 80 < Math.ceil(heightAndWidthAndLength.avgHeight) ? 80 : Math.ceil(heightAndWidthAndLength.avgHeight), // in centimeters
+    height:
+      80 < Math.ceil(heightAndWidthAndLength.avgHeight)
+        ? 80
+        : Math.ceil(heightAndWidthAndLength.avgHeight), // in centimeters
     drop_off: false,
     description: 'string',
     delivery_address: {
@@ -477,29 +564,26 @@ const createShippingRatesService = async (payload: any) => {
   };
 
   console.log('shippingData=======', shippingData);
-let result;
-  
+  let result;
+
   try {
-
-       result = await axios.post(
-        'https://api.wearewuunder.com/api/v2/bookings/rates',
-        shippingData,
-        {
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
+    result = await axios.post(
+      'https://api.wearewuunder.com/api/v2/bookings/rates',
+      shippingData,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
         },
-      );
-      // console.log('resulet ======', result);
+      },
+    );
+    // console.log('resulet ======', result);
 
-      console.log('shipingRates==result', result);
-    
-  } catch (error:any) {
-    if(error.response.status === 422){
-      throw new AppError(403, "Your Information is not Valid");
+    console.log('shipingRates==result', result);
+  } catch (error: any) {
+    if (error.response.status === 422) {
+      throw new AppError(403, 'Your Information is not Valid');
     }
-    
   }
 
   // const shipingRates = await wearewuunderApiRequest(
@@ -509,7 +593,6 @@ let result;
   // );
 
   // console.log('shipingRates====', shipingRates);
-
 
   // return shipingRates.rates;
 

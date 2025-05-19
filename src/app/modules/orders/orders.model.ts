@@ -49,10 +49,12 @@ const OrderSchema = new Schema<TOrder>(
     country: { type: String, required: true },
     business: { type: String, required: true },
     address2: { type: String, required: true },
-    history: {
-      type: [historyEntrySchema],
-      required: false,
-    },
+    error: { type: String, required: false, default: null },
+    trackUrl: { type: String, required: false, default: null },
+    // history: {
+    //   type: [historyEntrySchema],
+    //   required: false,
+    // },
   },
   { timestamps: true },
 );

@@ -20,6 +20,7 @@ import Cart from '../cart/cart.model';
 import PickupAddress from '../pickupAddress/pickupAddress.model';
 import { calculateShippingBox, wearewuunderApiRequest } from '../shipmentApi/shipmentApi.utils';
 import { ShipmentRequestApi } from '../shipmentApi/shipmentApi.model';
+import axios from 'axios';
 
 type SessionData = Stripe.Checkout.Session;
 
@@ -501,10 +502,7 @@ const createCheckout = async (userId: any, payload: any) => {
 };
 
 const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
-  console.log('hit hise webhook controller servie');
 
-  const session = await mongoose.startSession();
-  session.startTransaction();
 
   try {
     switch (event.type) {
@@ -538,33 +536,33 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
           throw new AppError(httpStatus.BAD_REQUEST, 'Payment Not Successful');
         }
 
-        const orderHistory = [
-          {
-            status: 'completed',
-            date: new Date(),
-          },
-          {
-            status: 'recived',
-            date: '',
-          },
-          {
-            status: 'ongoing',
-            date: '',
-          },
-          {
-            status: 'delivery',
-            date: '',
-          },
-          {
-            status: 'finished',
-            date: '',
-          },
-        ];
+        // const orderHistory = [
+        //   {
+        //     status: 'completed',
+        //     date: new Date(),
+        //   },
+        //   {
+        //     status: 'recived',
+        //     date: '',
+        //   },
+        //   {
+        //     status: 'ongoing',
+        //     date: '',
+        //   },
+        //   {
+        //     status: 'delivery',
+        //     date: '',
+        //   },
+        //   {
+        //     status: 'finished',
+        //     date: '',
+        //   },
+        // ];
 
         const order = await Order.findByIdAndUpdate(
           orderId,
-          { paymentStatus: 'paid', status: 'completed', history: orderHistory },
-          { new: true, session },
+          { paymentStatus: 'paid', status: 'completed' },
+          { new: true },
         );
 
         if (!order) {
@@ -575,7 +573,7 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
           order.productList.map(async (product: any) => {
             const singleProduct: any = await Product.findById(
               product.productId,
-            ).session(session);
+            );
 
             if (!singleProduct) {
               throw new AppError(404, 'Product is not Found!!');
@@ -591,7 +589,7 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
                 availableStock: { $gte: product.quantity },
               }, 
               { $inc: { availableStock: -product.quantity } }, 
-              { new: true, session },
+              { new: true },
             );
 
             if (!updatedProduct) {
@@ -615,7 +613,7 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
           transactionDate: order?.orderDate,
         };
 
-        const payment = await Payment.create([paymentData], { session });
+        const payment = await Payment.create(paymentData);
         console.log('===payment', payment);
 
         if (!payment) {
@@ -703,40 +701,94 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
         
            
         
-            const shipmentRequestBooking = await wearewuunderApiRequest(
-              'shipments',
-              'POST',
-              shipmentRequestData,
-            );
-        
-            console.log('shipmentRequestBooking==*****', shipmentRequestBooking);
-        
-            if (shipmentRequestBooking.status === 201) {
-              const data = {
-                shipmentRequestId: shipmentRequestBooking.data.id,
-              };
+            // const shipmentRequestBooking = await wearewuunderApiRequest(
+            //   'shipments',
+            //   'POST',
+            //   shipmentRequestData,
+            // );
 
-          
-        
-              const shipingApi = await ShipmentRequestApi.create(data);
-              console.log('shipingApi', shipingApi);
-        
-              if (!shipingApi) {
-                throw new AppError(400, 'ShipmentRequestApi creqate failed!');
+           
+
+            try {
+              const shipmentRequestBooking = await axios.post(
+                'https://api.wearewuunder.com/api/v2/shipments',
+                shipmentRequestData,
+                {
+                  headers: {
+                    // Authorization: `Bearer ${config.shipment_key}`,
+                    Authorization: `Bearer 7EyVLQIcx2Ul6PISQaTba0Mr96geTdP6`,
+                    'Content-Type': 'application/json',
+                  },
+                },
+              );
+
+              // const shipmentRequestBooking = await wearewuunderApiRequest(
+              //   'shipments',
+              //   'POST',
+              //   shipmentRequestData,
+              // );
+              console.log(
+                'shipmentRequestBooking==*****',
+                shipmentRequestBooking,
+              );
+
+              if (shipmentRequestBooking.status === 201) {
+                const data = {
+                  shipmentRequestId: shipmentRequestBooking.data.id,
+                };
+
+                const shipingApi = await ShipmentRequestApi.create(data);
+                console.log('shipingApi', shipingApi);
+                const order = await Order.findByIdAndUpdate(
+                  orderId,
+                  { trackUrl: shipmentRequestBooking.data.track_and_trace_url },
+                  { new: true },
+                );
+
+                if (!order) {
+                  throw new AppError(httpStatus.BAD_REQUEST, 'Order not found');
+                }
+
+                if (!shipingApi) {
+                  throw new AppError(400, 'ShipmentRequestApi creqate failed!');
+                }
               }
+            } catch (error:any) {
+              console.log('error==', error);
+
+              console.error('Error Response:', {
+                status: error.response.status,
+                data: error.response.data,
+                headers: error.response.headers,
+                // url: url,
+                // method: method,
+                // errors: error.response.data.errors.map(
+                //   (errorItem: any) => errorItem.messages,
+                // ),
+                message: error.response.data[0]?.message,
+              });
+
+
+              if(error){
+                const order = await Order.findByIdAndUpdate(
+                  orderId,
+                  { error: 'post code is not valid!!' },
+                  { new: true },
+                );
+              }
+              
             }
 
 
-
-        const deletedCartProducts = await Promise.all(
-          cartIds.map(async (cartProductId: any) => {
-            const isDelete =
-              await Cart.findByIdAndDelete(cartProductId).session(session);
-            if (!isDelete) {
-              throw new AppError(404, 'Failed to delete cart product');
-            }
-          }),
-        );
+        // const deletedCartProducts = await Promise.all(
+        //   cartIds.map(async (cartProductId: any) => {
+        //     const isDelete =
+        //       await Cart.findByIdAndDelete(cartProductId);
+        //     if (!isDelete) {
+        //       throw new AppError(404, 'Failed to delete cart product');
+        //     }
+        //   }),
+        // );
 
         const notificationData = {
           userId: userId,
@@ -763,15 +815,12 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
           {
             userId,
             status: 'pending',
-          },
-          { session },
+          }
         );
         console.log('deletedServiceBookings', deletedServiceBookings);
 
         
 
-        await session.commitTransaction();
-        session.endSession();
         console.log('Payment completed successfully:', {
           sessionId,
           paymentIntentId,
@@ -813,8 +862,6 @@ const automaticCompletePayment = async (event: Stripe.Event): Promise<void> => {
     }
   } catch (err) {
     console.error('Error processing webhook event:', err);
-    await session.abortTransaction();
-    session.endSession();
   }
 };
 

@@ -1,7 +1,5 @@
 import jwt from 'jsonwebtoken';
 import { Server, Socket } from 'socket.io';
-import config from './app/config';
-import { socketVerifyToken } from './app/helpers/socketVerifyToken';
 import { handleChatEvents } from './app/modules/socket/events/chatEvents';
 import { handleMessageEvents } from './app/modules/socket/events/messageEvents';
 

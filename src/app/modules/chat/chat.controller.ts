@@ -9,27 +9,21 @@ const getAllChats = catchAsync(async (req, res) => {
     page: Number(req.query.page) || 1,
   };
   const { userId } = req.user;
-  // console.log('userId=====================', userId);
   const filter: any = { participantId: userId };
 
   const search = req.query.search;
-  // console.log('serch', search);
 
   if (search && search !== 'null' && search !== '' && search !== undefined) {
     const searchRegExp = new RegExp('.*' + search + '.*', 'i');
     filter.name = searchRegExp;
-    // filter._id = search;
   }
-  //  const { userId } = req.user;
-  // // console.log({ filter });
-  // // console.log({ options });
+
 
   const result = await getChatByParticipantId(filter, options);
 
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.OK,
-    //    meta: meta,
     data: result,
     message: 'chat list get successfully!',
   });

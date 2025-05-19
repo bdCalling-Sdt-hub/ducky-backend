@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import Chat from './chat.model';
 
-// Create a new chat (Equivalent to `createChat` in your old code)
 export const createChat = async (user: any, participant: any) => {
   const newChat = new Chat({
     participants: [user, participant],
@@ -13,12 +12,10 @@ export const createChat = async (user: any, participant: any) => {
   });
 };
 
-// Get chat by ID
 export const getChatById = async (id: string) => {
   return await Chat.findById(id);
 };
 
-// Get chat by participants
 export const getChatByParticipants = async (user: any, participant: any) => {
   const chat = await Chat.findOne({
     participants: { $all: [user, participant] },
@@ -29,7 +26,6 @@ export const getChatByParticipants = async (user: any, participant: any) => {
   return chat;
 };
 
-// Get chat details by participant ID
 export const getChatDetailsByParticipantId = async (
   user: any,
   participant: any,
@@ -40,26 +36,20 @@ export const getChatDetailsByParticipantId = async (
   return chat;
 };
 
-// Delete chat by ID (Equivalent to `deleteChatList` in your old code)
 export const deleteChatList = async (chatId: any) => {
   return await Chat.findByIdAndDelete(chatId);
 };
 
-// Get chats by participant ID with pagination and filtering
 export const getChatByParticipantId = async (filters: any, options: any) => {
-  // // console.log(filters, options);
-  // console.log('filters ----', filters);
   try {
     const page = Number(options.page) || 1;
     const limit = Number(options.limit) || 10;
     const skip = (page - 1) * limit;
 
     const participantId = new mongoose.Types.ObjectId(filters.participantId);
-    // console.log('participantId===', participantId);
 
     const name = filters.name || '';
 
-    // console.log({ name });
 
     const allChatLists = await Chat.aggregate([
       { $match: { participants: participantId } },
@@ -140,8 +130,6 @@ export const getChatByParticipantId = async (filters: any, options: any) => {
       },
     ]);
 
-    // console.log('allChatLists');
-    // console.log(allChatLists);
 
     const totalResults =
       allChatLists[0]?.totalCount?.length > 0
@@ -151,16 +139,13 @@ export const getChatByParticipantId = async (filters: any, options: any) => {
     const totalPages = Math.ceil(totalResults / limit);
     const pagination = { totalResults, totalPages, currentPage: page, limit };
 
-    // return { chatList: allChatLists, pagination };
     return { chatList: allChatLists[0]?.data, pagination };
-    // return allChatLists;
   } catch (error) {
     console.error(error);
     throw error;
   }
 };
 
-// Get participant lists (Equivalent to `getMyChatList` in your old code)
 export const getMyChatList = async (userId: any) => {
   const myId = new mongoose.Types.ObjectId(userId);
   const result = await Chat.aggregate([
@@ -177,7 +162,6 @@ export const getMyChatList = async (userId: any) => {
   return result;
 };
 
-// Export all functions as part of chatService object (Optional)
 export const chatService = {
   createChat,
   getChatById,

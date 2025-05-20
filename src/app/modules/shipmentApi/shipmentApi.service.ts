@@ -351,7 +351,7 @@ const createShippingRequestService = async (id: any) => {
                       {
                         trackUrl:
                           shipmentRequestBooking.data.track_and_trace_url,
-                          error:null
+                          error:'false'
                       },
                       { new: true },
                     );

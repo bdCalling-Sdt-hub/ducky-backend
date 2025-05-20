@@ -14,6 +14,9 @@ orderRouter
   .get('/user', auth(USER_ROLE.USER), orderController.getAllOrderByUser)
   .get('/:id', orderController.getSingleOrder)
   .patch('/:id', orderController.updateSingleOrderStatus)
+  .patch('/update/:id',
+    auth(USER_ROLE.ADMIN),
+     orderController.updateSingleOrderByAdmin)
   .delete(
     '/:id',
     // auth(USER_ROLE.ADMIN, USER_ROLE.SUB_ADMIN),

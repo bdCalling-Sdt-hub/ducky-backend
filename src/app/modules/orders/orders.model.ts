@@ -49,8 +49,8 @@ const OrderSchema = new Schema<TOrder>(
     country: { type: String, required: true },
     business: { type: String, required: true },
     address2: { type: String, required: true },
-    error: { type: String, required: false, default: null },
-    trackUrl: { type: String, required: false, default: null },
+    error: { type: String, required: false, default: 'false' },
+    trackUrl: { type: String, required: false, default: 'false' },
     // history: {
     //   type: [historyEntrySchema],
     //   required: false,

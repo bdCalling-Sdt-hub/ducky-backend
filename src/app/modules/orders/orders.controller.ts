@@ -19,9 +19,14 @@ const getAllOrder = catchAsync(async (req, res) => {
 
 const getAllOrderByUser = catchAsync(async (req, res) => {
     const {userId} = req.user;
+    const query:any = req.query;
+    // if(query.error === "true"){
+    //     delete query.error
+    //     query.error = null
+    // }
   const { meta, result } = await orderService.getAllOrderByUserQuery(
     userId,
-    req.query,
+    query,
   );
 
   sendResponse(res, {
@@ -69,10 +74,26 @@ const deleteSingleOrder = catchAsync(async (req, res) => {
   });
 });
 
+const updateSingleOrderByAdmin = catchAsync(async (req, res) => {
+  const payload = req.body;
+  const result = await orderService.updateOrderByAdminQuery(
+    req.params.id,
+    payload,
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    data: result,
+    message: 'Updated Single Order are successful!!',
+  });
+});
+
 export const orderController = {
   getAllOrder,
   getAllOrderByUser,
   getSingleOrder,
   updateSingleOrderStatus,
+  updateSingleOrderByAdmin,
   deleteSingleOrder,
 };

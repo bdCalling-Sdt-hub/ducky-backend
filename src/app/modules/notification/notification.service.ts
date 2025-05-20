@@ -27,7 +27,11 @@ const getAllNotificationQuery = async (
 
   const result = await notificationQuery.modelQuery;
   const meta = await notificationQuery.countTotal();
-  return { meta, result };
+  const unReadNotification = await Notification.countDocuments({
+    userId,
+    isRead: false,
+  });
+  return { meta, result: { unReadCount: unReadNotification, result } };
 };
 
 const getAllNotificationByAdminQuery = async (
@@ -50,6 +54,53 @@ const getAllNotificationByAdminQuery = async (
 
 const getSingleNotification = async (id: string) => {
   const result = await Notification.findById(id);
+  return result;
+};
+
+const getSingleReadNotification = async (id: string, userId: string) => {
+  // Fetch the user by ID
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError(404, 'User not found!');
+  }
+
+  const notification: any = await Notification.findById(id);
+  if (!notification) {
+    throw new AppError(404, 'Notification is not found!');
+  }
+
+  if (notification.userId.toString() !== userId) {
+    throw new AppError(
+      403,
+      'You are not authorized to access this notification!',
+    );
+  }
+
+  // Delete the SaveStory
+  const result = await Notification.findByIdAndUpdate(id,{
+    $set: {
+      isRead: true,
+    },
+  }, { new: true });
+  if (!result) {
+    throw new AppError(500, 'Error deleting SaveStory!');
+  }
+
+  return result;
+};
+
+const getAllReadNotification = async (userId: string) => {
+  // Fetch the user by ID
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError(404, 'User not found!');
+  }
+
+  const result = await Notification.updateMany(
+    { userId: userId },
+    { $set: { isRead: true } },
+  );
+
   return result;
 };
 
@@ -105,5 +156,7 @@ export const notificationService = {
   getAllNotificationByAdminQuery,
   deleteNotification,
   getSingleNotification,
+  getSingleReadNotification,
+  getAllReadNotification,
   deleteAdminNotification,
 };

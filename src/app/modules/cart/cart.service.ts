@@ -33,7 +33,10 @@ const getAllCartQuery = async (
   userId: string,
 ) => {
   const favoriteProductQuery = new QueryBuilder(
-    Cart.find({ userId }).populate({path:'productId', select:"name images"}),
+    Cart.find({ userId }).populate({
+      path: 'productId',
+      select: 'name  coverImage',
+    }),
     query,
   )
     .search([''])

@@ -3,6 +3,7 @@ import httpStatus from 'http-status';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Order } from './orders.model';
 import { notificationService } from '../notification/notification.service';
+import { parse } from 'path';
 
 const getAllOrderQuery = async (query: Record<string, unknown>) => {
   const OrderQuery = new QueryBuilder(
@@ -25,6 +26,8 @@ const getAllOrderQuery = async (query: Record<string, unknown>) => {
 
 
 const getAllOrderByUserQuery = async (userId:string, query: Record<string, unknown>) => {
+  console.log('===============1111', query);
+ 
   const OrderQuery = new QueryBuilder(
     Order.find({ userId: userId, paymentStatus: 'paid' }).populate(
       'productList.productId',
@@ -38,10 +41,12 @@ const getAllOrderByUserQuery = async (userId:string, query: Record<string, unkno
     .fields();
 
   const result = await OrderQuery.modelQuery;
-
   const meta = await OrderQuery.countTotal();
   return { meta, result };
 };
+
+
+
 
 const getSingleOrderQuery = async (id: string) => {
   const order: any = await Order.findById(id).populate('productList.productId').populate('userId');
@@ -108,6 +113,27 @@ if (updateHistory) {
 
 };
 
+const updateOrderByAdminQuery = async (id: string, payload:any) => {
+  if (!id) {
+    throw new AppError(400, 'Invalid input parameters');
+  }
+  const order = await Order.findById(id);
+  if (!order) {
+    throw new AppError(404, 'Order Not Found!!');
+  }
+
+  const { userId ,productList, totalAmount, orderDate, status, paymentStatus,error, trackUrl, ...rest} = payload;
+
+
+  const result = await Order.findByIdAndUpdate(id,rest, { new: true });
+  if (!result) {
+    throw new AppError(404, 'Order update Not Found !');
+  }
+
+  return result;
+};
+
+
 const deletedOrderQuery = async (id: string) => {
   if (!id) {
     throw new AppError(400, 'Invalid input parameters');
@@ -130,5 +156,6 @@ export const orderService = {
   getAllOrderByUserQuery,
   getSingleOrderQuery,
   updateSingleOrderStatusQuery,
+  updateOrderByAdminQuery,
   deletedOrderQuery,
 };

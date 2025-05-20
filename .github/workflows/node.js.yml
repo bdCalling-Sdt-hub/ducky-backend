@@ -23,5 +23,5 @@ jobs:
           cache: "npm"
       - run: npm ci
       - name: Change Directory
-        run: cd /home/ducky/actions-ducky/_work/ducky-backend/ducky-backend
+        run: cd /home/ducky/actions-ducky-backend/_work/ducky-backend/ducky-backend
       - run: pm2 restart 0
